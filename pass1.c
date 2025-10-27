@@ -2,70 +2,120 @@
 #include <stdlib.h>
 #include <string.h>
 
-int main() {
-  char opcode[15],operand[15],label[30];
-  char optab_opcode[15],optab_value[15];
-  int locctr, start,length;
-  FILE  *inp,*symtab, *optab, *inter, *len;
-  inp = fopen("input.txt","r");
-  symtab = fopen("symtab.txt","w");
-  optab  = fopen("optab.txt","r");
-  inter = fopen("intermediate.txt","w");
-  len = fopen("length.txt","w");
+void displayFile(const char *filename)
+{
+  FILE *fp = fopen(filename, "r");
+  char ch;
+  printf("\nContents of %s\n", filename);
+  while ((ch = fgetc(fp)) != EOF)
+  {
+    putchar(ch);
+  }
+  fclose(fp);
+}
 
-  if (!inp || !symtab ||!optab || !inter || !len) {
-    printf("Error opening file\n");
-    exit(1);
+void passOne()
+{
+  char label[10], opcode[10], operand[10], mnemonic[10], code[10];
+  int locctr, start = 0, length = 0;
+
+  FILE *fp1 = fopen("input.txt", "r");
+  FILE *fp2 = fopen("optab.txt", "r");
+  FILE *fp3 = fopen("symtab.txt", "w");
+  FILE *fp4 = fopen("intermediate.txt", "w");
+  FILE *fp5 = fopen("length.txt", "w");
+
+  fscanf(fp1, "%s %s %s", label, opcode, operand);
+
+  if (strcmp(opcode, "START") == 0)
+  {
+
+    start = (int)strtol(operand, NULL, 16);
+    locctr = start;
+    fprintf(fp4, "\t%s\t%s\t%s\n", label, opcode, operand);
+
+    fscanf(fp1, "%s %s %s", label, opcode, operand);
+  }
+  else
+  {
+    locctr = 0;
   }
 
-  fscanf(inp,"%s %s %s",label,opcode,operand);
-  if (strcmp(opcode,"START") == 0) {
-    locctr = (int)strtol(operand,NULL,16);
-    start = locctr;
-    fprintf(inter,"%-8X%-8s%-8s%s\n",locctr,label,opcode,operand);
-    fscanf(inp,"%s %s %s",label,opcode,operand);
-  } else {
-    locctr = start = 0;
-  }
+  while (strcmp(opcode, "END") != 0)
+  {
+    fprintf(fp4, "%X\t%s\t%s\t%s\n", locctr, label, opcode, operand);
 
-  while(strcmp(opcode,"END") != 0){
-    if (strcmp(opcode,"~") != 0) {
-      fprintf(symtab,"%-8s%04X\n",label,locctr);
+    if (strcmp(label, "**") != 0)
+    {
+      fprintf(fp3, "%s\t%X\n", label, locctr);
     }
-    fprintf(inter,"%-8X%-8s%-8s%s\n",locctr,label,opcode,operand);
-    rewind(optab);
+    rewind(fp2);
     int found = 0;
-    while(fscanf(optab, "%s %s",optab_opcode,optab_value) == 2) {
-      if (strcmp(opcode,optab_opcode) == 0) {
-        locctr +=3;
-        found =1;
+
+    while ((fscanf(fp2, "%s %s", mnemonic, code)) != EOF)
+    {
+      if (strcmp(opcode, mnemonic) == 0)
+      {
+        locctr += 3;
+        found = 1;
         break;
       }
-      if (!found){
-        if(strcmp(opcode,"WORD")) {
-          locctr +=3;
-        } else if (strcmp(opcode,"RESW")) {
-          locctr +=3 *atoi(operand);
-        } else if (strcmp(opcode,"RESB")){
-          locctr += atoi(operand);
-        } else if(strcmp(opcode,"BYTE")) {
-          if (operand[0] == 'C') {
-            locctr += strlen(operand) -3;
-          } else if (operand[0] == 'X'){
-            locctr += (strlen(operand)- 2)/2;
-          }
+    }
+    if (!found)
+    {
+      if (strcmp(opcode, "WORD") == 0)
+      {
+        locctr += 3;
+      }
+      else if (strcmp(opcode, "RESW") == 0)
+      {
+        locctr += 3 * atoi(operand);
+      }
+      else if (strcmp(opcode, "BYTE") == 0)
+      {
+        if (operand[0] == 'C' || operand[0] == 'c')
+        {
+          // Character constant: C'EOF' = 3 bytes
+          locctr += strlen(operand) - 3; // Remove C' and '
+        }
+        else if (operand[0] == 'X' || operand[0] == 'x')
+        {
+          // Hex constant: X'F1' = 1 byte, X'F1A2' = 2 bytes
+          locctr += (strlen(operand) - 3) / 2; // Remove X' and ', divide by 2
+        }
+        else
+        {
+          locctr += 1; // Default case
         }
       }
+      else if (strcmp(opcode, "RESB") == 0)
+      {
+        locctr += atoi(operand);
+      }
     }
-    fscanf(inp,"%s %s %s",label,opcode,operand);
+
+    fscanf(fp1, "%s %s %s", label, opcode, operand);
   }
-  fprintf(inter,"%-8X%-8s%-8s%s\n",locctr,label,opcode,operand);
+  fprintf(fp4, "%X\t%s\t%s\t%s\n", locctr, label, opcode, operand);
   length = locctr - start;
-  fprintf(len,"%X",length);
-  fclose(inp);
-  fclose(symtab);
-  fclose(optab);
-  fclose(inter);
-  fclose(len);
+  fprintf(fp5, "%X", length);
+
+  fclose(fp1);
+  fclose(fp2);
+  fclose(fp3);
+  fclose(fp4);
+  fclose(fp5);
+
+  printf("\nPass 1 complete. Program length = %X\n", length);
+
+  displayFile("intermediate.txt");
+  displayFile("optab.txt");
+  displayFile("symtab.txt");
+  displayFile("length.txt");
+}
+
+int main()
+{
+  passOne();
   return 0;
 }
