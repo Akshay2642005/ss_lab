@@ -1,137 +1,59 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-#define MAX_BLOCKS 100
-#define MAX_FILES 10
-#define MAX_FILENAME 50
+int main() {
+    int n;
+    int indexBlock;
+    int length;
+    int block;
+    int disk[100] = {0};
 
-struct Block
-{
-  int block_number;
-  struct Block *next;
-};
+    printf("Enter number of files to be allocated: ");
+    scanf("%d", &n);
 
-struct File
-{
-  char filename[MAX_FILENAME];
-  struct Block *head;
-};
+    for (int i = 1; i <= n; i++) {
+        printf("\nEnter the index block for file %d: ", i);
+        scanf("%d", &indexBlock);
 
-int blockAllocated[MAX_BLOCKS] = {0};
+        if (disk[indexBlock] == 1) {
+            printf("Index block already allocated. Choose another block.\n");
+            i--;
+            continue;
+        }
 
-struct Block *allocateBlock(int blockNumber)
-{
-  struct Block *newBlock = (struct Block *)malloc(sizeof(struct Block));
-  if (!newBlock)
-  {
-    printf("Memory allocation failed\n");
-    exit(1);
-  }
-  newBlock->block_number = blockNumber;
-  newBlock->next = NULL;
-  return newBlock;
-}
+        printf("Enter the number of blocks required for file %d: ", i);
+        scanf("%d", &length);
 
-void freeBlocks(struct Block *head)
-{
-  struct Block *current = head;
-  while (current)
-  {
-    struct Block *temp = current;
-    current = current->next;
-    free(temp);
-  }
-}
+        int fileBlocks[100];
+        int success = 1;
 
-int main()
-{
-  struct File files[MAX_FILES];
-  int num_files;
+        printf("Enter the blocks to be allocated for this file:\n");
 
-  printf("Enter number of files to allocate (max %d): ", MAX_FILES);
-  scanf("%d", &num_files);
+        for (int j = 0; j < length; j++) {
+            scanf("%d", &block);
 
-  if (num_files <= 0 || num_files > MAX_FILES)
-  {
-    printf("Invalid number of files.\n");
-    return 1;
-  }
+            if (disk[block] == 1 || block == indexBlock) {
+                printf("Block %d already allocated! Try again.\n", block);
+                success = 0;
+                break;
+            }
 
-  for (int i = 0; i < num_files; i++)
-  {
-    printf("\nFile %d:\n", i + 1);
-    printf("Enter filename: ");
-    scanf("%s", files[i].filename);
+            fileBlocks[j] = block;
+        }
 
-    int num_blocks;
-    printf("Enter number of blocks to allocate: ");
-    scanf("%d", &num_blocks);
+        if (success) {
+            disk[indexBlock] = 1;
+            for (int j = 0; j < length; j++)
+                disk[fileBlocks[j]] = 1;
 
-    if (num_blocks <= 0 || num_blocks > MAX_BLOCKS)
-    {
-      printf("Invalid number of blocks.\n");
-      i--;
-      continue;
+            printf("File %d allocated successfully.\n", i);
+            printf("Index Block: %d -> Blocks: ", indexBlock);
+            for (int j = 0; j < length; j++)
+                printf("%d ", fileBlocks[j]);
+            printf("\n");
+        } else {
+            printf("Allocation failed for File %d.\n", i);
+        }
     }
 
-    struct Block *head = NULL;
-    struct Block *current = NULL;
-
-    for (int j = 0; j < num_blocks; j++)
-    {
-      int block_num;
-      printf("Enter block number %d: ", j + 1);
-      scanf("%d", &block_num);
-
-      if (block_num < 0 || block_num >= MAX_BLOCKS)
-      {
-        printf(" Invalid block number! Must be between 0 and %d.\n", MAX_BLOCKS - 1);
-        j--;
-        continue;
-      }
-
-      if (blockAllocated[block_num])
-      {
-        printf(" Block %d is already allocated to another file! Choose a different block.\n", block_num);
-        j--;
-        continue;
-      }
-
-      blockAllocated[block_num] = 1;
-
-      struct Block *newBlock = allocateBlock(block_num);
-      if (head == NULL)
-      {
-        head = newBlock;
-        current = head;
-      }
-      else
-      {
-        current->next = newBlock;
-        current = newBlock;
-      }
-    }
-    files[i].head = head;
-  }
-
-  printf("\nAllocated files and their blocks:\n");
-  for (int i = 0; i < num_files; i++)
-  {
-    printf("File: %s\nBlocks: ", files[i].filename);
-    struct Block *current = files[i].head;
-    while (current)
-    {
-      printf("%d ", current->block_number);
-      current = current->next;
-    }
-    printf("\n\n");
-  }
-
-  for (int i = 0; i < num_files; i++)
-  {
-    freeBlocks(files[i].head);
-  }
-
-  return 0;
+    return 0;
 }
